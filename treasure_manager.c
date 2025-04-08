@@ -19,15 +19,15 @@ typedef struct{
     GPS coordinates;
     int value;
     char clue[15];
-}Treasure;
+}treasure;
 
 typedef struct{
     char *hunt_id;
-    Treasure *Tarray;
+    treasure *Tarray;
 }Hunt;
 
 
-void add(Treasure Tarray, char *huntID){
+void add(treasure Tarray, char *huntID){
 
     int check = chdir(huntID);
     
@@ -101,7 +101,7 @@ void list(char *huntID) {
 
     rewinddir(dir); 
 
-    printf("Treasures:\n");
+    printf("treasures:\n");
     while((fisier = readdir(dir)) != NULL) {
         if(strcmp(fisier->d_name, ".") == 0 || strcmp(fisier->d_name, "..") == 0)
             continue;
@@ -112,17 +112,105 @@ void list(char *huntID) {
     closedir(dir);
 }
 
+void view(char *treasureName){
+    char cwd[128];
+    getcwd(cwd,sizeof(cwd));
+
+    DIR *dir=opendir(".");
+    if (dir == NULL) {
+        printf("Folderul nu exista.\n");
+        return;
+    }
+
+    struct dirent *intrare;
+    struct stat info;
+
+    while((intrare=readdir(dir))!=NULL){
+        if(strcmp(intrare->d_name, ".") == 0 || strcmp(intrare->d_name, "..") == 0){
+            continue;
+        }
+
+        stat(intrare->d_name,&info);
+
+        if(S_ISREG(info.st_mode)) {
+            if(strcmp(intrare->d_name, treasureName) == 0) {
+                printf("A fost gasit treasure-ul in %s/%s\n", cwd, intrare->d_name);
+                closedir(dir);
+                exit(0);
+            }
+        } 
+        else if(S_ISDIR(info.st_mode)) {
+            
+            chdir(intrare->d_name);
+            view(treasureName);
+            chdir("..");  
+        }
+    }
+    closedir(dir);
+}
+
+int remTreasure(const char *treasureName) {
+    DIR *dir = opendir(".");
+    if (dir == NULL) {
+        perror("Eroare deschidere director");
+        return 0;
+    }
+
+    struct dirent *intrare;
+    struct stat info;
+
+    while ((intrare = readdir(dir)) != NULL) {
+        if (strcmp(intrare->d_name, ".") == 0 || strcmp(intrare->d_name, "..") == 0)
+            continue;
+
+        if (stat(intrare->d_name, &info) == -1)
+            continue;
+
+        if (S_ISREG(info.st_mode)) {
+            if (strcmp(intrare->d_name, treasureName) == 0) {
+                if (remove(treasureName) == 0) {
+                    printf("S-a sters fisierul %s\n", treasureName);
+                    closedir(dir);
+                    return 1;
+                } else {
+                    perror("Eroare la stergere fisier");
+                    closedir(dir);
+                    return 0;
+                }
+            }
+        } else if (S_ISDIR(info.st_mode)) {
+            if (chdir(intrare->d_name) == 0) {
+                int gasit = remTreasure(treasureName);
+                chdir("..");
+                if (gasit) {
+                    closedir(dir);
+                    return 1;
+                }
+            }
+        }
+    }
+
+    closedir(dir);
+    return 0;
+}
+
+
+
 int main(){
 
-    Treasure test1={"treasure1","Tudor",{1.2,2.5},25,"clue1"};
-    Treasure test2={"treasure2","Gabriel",{2.2,3.5},35,"clue2"};
-    Treasure test3={"treasure3","Flavius",{3.2,4.5},45,"clue3"};
+    treasure test1={"treasure1","Tudor",{1.2,2.5},25,"clue1"};
+    treasure test2={"treasure2","Gabriel",{2.2,3.5},35,"clue2"};
+    treasure test3={"treasure3","Flavius",{3.2,4.5},45,"clue3"};
 
     add(test1,"proiect1");
     add(test2,"proiect2");
     add(test3,"proiect1");
 
-    list("proiect1");
+    //list("proiect1");
 
+    //view("treasure2");
+
+    remTreasure("treasure3");
+    
     return 0;
 }
