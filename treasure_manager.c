@@ -122,7 +122,7 @@ void view(char *dir, char *treasureName){
         }
 
         if (strcmp(tr.treasure_id, treasureName) == 0) {
-            printf("Treasure-ul gasit este:\n");
+            printf("Treasure-ul gasit in %s este:\n",dir);
             printf("Treasure ID: %s\nUsername: %s\nCoordinates: %.2f %.2f\nValue: %d\nClue: %s\n",tr.treasure_id,tr.username,tr.coordinates.latitude,tr.coordinates.longitude,tr.value,tr.clue);
             gasit = 1;
             break;
@@ -138,52 +138,66 @@ void view(char *dir, char *treasureName){
     close(f);
 }
 
-int remTreasure(const char *treasureName) {
-    DIR *dir = opendir(".");
-    if (dir == NULL) {
-        perror("Eroare deschidere director");
-        return 0;
+int remTreasure(char *dir, const char *treasureName) {
+    char path[64];
+    snprintf(path, sizeof(path), "%s/treasures.bin", dir);
+
+    int fd = open(path, O_RDWR);
+    if (fd == -1) {
+        perror("open");
+        return 1;
     }
 
-    struct dirent *intrare;
-    struct stat info;
+    struct stat st;
+    if (fstat(fd, &st) == -1) {
+        perror("fstat");
+        close(fd);
+        return 2;
+    }
 
-    while ((intrare = readdir(dir)) != NULL) {
-        if (strcmp(intrare->d_name, ".") == 0 || strcmp(intrare->d_name, "..") == 0)
-            continue;
+    treasure tr;
+    off_t read_offset = 0;
+    off_t write_offset = 0;
+    int found = 0;
 
-        if (stat(intrare->d_name, &info) == -1)
-            continue;
-
-        if (S_ISREG(info.st_mode)) {
-            if (strcmp(intrare->d_name, treasureName) == 0) {
-                if (remove(treasureName) == 0) {
-                    printf("S-a sters fisierul %s.\n", treasureName);
-                    closedir(dir);
-                    return 1;
-                } else {
-                    perror("Eroare la stergere fisier");
-                    closedir(dir);
-                    return 0;
-                }
-            }
-        } else if (S_ISDIR(info.st_mode)) {
-            if (chdir(intrare->d_name) == 0) {
-                int gasit = remTreasure(treasureName);
-                chdir("..");
-                if (gasit) {
-                    closedir(dir);
-                    return 1;
-                }
-            }
+    while (read_offset + sizeof(treasure) <= st.st_size) {
+        lseek(fd, read_offset, SEEK_SET);
+        ssize_t bytes = read(fd, &tr, sizeof(treasure));
+        if (bytes != sizeof(treasure)) {
+            perror("read");
+            close(fd);
+            return 3;
         }
+
+        if (strcmp(tr.treasure_id, treasureName) == 0) {
+            found = 1; 
+        } else {
+            lseek(fd, write_offset, SEEK_SET);
+            write(fd, &tr, sizeof(treasure));
+            write_offset += sizeof(treasure);
+        }
+
+        read_offset += sizeof(treasure);
     }
 
-    closedir(dir);
+    if (!found) {
+        printf("Nu exista treasure-ul in director.\n");
+        close(fd);
+        return 4;
+    }
+
+    if (ftruncate(fd, write_offset) == -1) {
+        perror("ftruncate");
+        close(fd);
+        return 5;
+    }
+
+    printf("Treasure-ul a fost sters cu succes din director.\n");
+    close(fd);
     return 0;
 }
 
-int remFolder(char *huntName) {
+int remHunt(char *huntName) {
     DIR *dir = opendir(huntName);
     if (dir == NULL) {
         perror("Eroare deschidere director");
@@ -223,21 +237,22 @@ int remFolder(char *huntName) {
 
 int main(){
 
-    treasure test1={"treasure1","Tudor",{1.2,2.5},25,"clue1"};
-    treasure test2={"treasure2","Gabriel",{2.2,3.5},35,"clue2"};
-    treasure test3={"treasure3","Flavius",{3.2,4.5},45,"clue3"};
+    treasure test1={"TR1","Tudor",{1.2,2.5},25,"CL1"};
+    treasure test2={"TR2","Gabriel",{2.2,3.5},35,"CL2"};
+    treasure test3={"TR3","Flavius",{3.2,4.5},45,"CL3"};
 
-    add(test1,"proiect1");
-    add(test2,"proiect2");
-    add(test3,"proiect1");
+    add(test1,"HUNT1");
+    add(test2,"HUNT2");
+    add(test3,"HUNT1");
 
-    list("proiect1");
+    list("HUNT1");
 
-    view("proiect2","treasure2");
+    view("HUNT2","TR2");
 
-    //remTreasure("treasure3");
+    remTreasure("HUNT1","TR3");
     
-    remFolder("proiect1");
+    remHunt("HUNT1");
+    remHunt("HUNT2");
 
     return 0;
 }
