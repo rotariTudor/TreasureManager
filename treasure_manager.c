@@ -158,7 +158,7 @@ int remTreasure(const char *treasureName) {
         if (S_ISREG(info.st_mode)) {
             if (strcmp(intrare->d_name, treasureName) == 0) {
                 if (remove(treasureName) == 0) {
-                    printf("S-a sters fisierul %s\n", treasureName);
+                    printf("S-a sters fisierul %s.\n", treasureName);
                     closedir(dir);
                     return 1;
                 } else {
