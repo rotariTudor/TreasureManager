@@ -194,6 +194,53 @@ int remTreasure(const char *treasureName) {
     return 0;
 }
 
+int remFolder(char *huntName) {
+    DIR *dir = opendir(huntName);
+    if (dir == NULL) {
+        perror("Eroare deschidere director");
+        return 0;
+    }
+
+    struct dirent *intrare;
+    struct stat info;
+    char cale[512];
+
+    while ((intrare = readdir(dir)) != NULL) {
+        if (strcmp(intrare->d_name, ".") == 0 || strcmp(intrare->d_name, "..") == 0)
+            continue;
+
+        snprintf(cale, sizeof(cale), "%s/%s", huntName, intrare->d_name);
+
+        if (stat(cale, &info) == -1)
+            continue;
+
+        if (S_ISREG(info.st_mode)) {
+            if (remove(cale) != 0) {
+                perror("Eroare la stergere fisier");
+                closedir(dir);
+                return 0;
+            }
+            else{
+                printf("S-a sters fisierul %s.\n",cale);
+            }
+        } else if (S_ISDIR(info.st_mode)) {
+            if (!remFolder(cale)) {
+                closedir(dir);
+                return 0;
+            }
+        }
+    }
+
+    closedir(dir);
+
+    if (rmdir(huntName) == 0) {
+        printf("S-a sters folderul %s\n", huntName);
+        return 1;
+    } else {
+        perror("Eroare la stergere folder");
+        return 0;
+    }
+}
 
 
 int main(){
@@ -212,5 +259,7 @@ int main(){
 
     remTreasure("treasure3");
     
+    remFolder("proiect1");
+
     return 0;
 }
