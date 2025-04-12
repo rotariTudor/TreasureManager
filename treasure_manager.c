@@ -8,6 +8,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+typedef enum{
+    ADD_TREASURE,
+    LIST_TREASURE,
+    VIEW_TREASURE,
+    REMOVE_TREASURE,
+    REMOVE_HUNT
+  }Option;
+
 typedef struct{
     float latitude;
     float longitude;
@@ -21,7 +29,24 @@ typedef struct{
     char clue[15];
 }treasure;
 
-void add(treasure T, char *huntID) {
+
+
+treasure exemple[10] = {
+    {"TR1", "Alex", {1.2, 2.5}, 25, "CL1"},
+    {"TR2", "Gabriel", {2.2, 3.5}, 35, "CL2"},
+    {"TR3", "Flavius", {3.2, 4.5}, 45, "CL3"},
+    {"TR4", "Andrei", {4.1, 5.3}, 55, "CL4"},
+    {"TR5", "Ioana", {5.7, 6.8}, 20, "CL5"},
+    {"TR6", "Patricia", {6.4, 7.2}, 40, "CL6"},
+    {"TR7", "Mihai", {7.9, 8.1}, 30, "CL7"},
+    {"TR8", "Diana", {1.5, 3.6}, 15, "CL8"},
+    {"TR9", "Alexandra", {2.8, 1.9}, 60, "CL9"},
+    {"TR10", "Vlad", {3.3, 4.4}, 50, "CL10"}
+};
+
+
+
+void add(char *huntID, treasure T) {
     int check = chdir(huntID);
     if(check == -1) {
         printf("Directory-ul %s nu exista.\n", huntID);
@@ -53,7 +78,7 @@ void list(char *huntID){
 
     int f=open(cale, O_RDONLY);
     if(f==-1){
-        printf("NU s-au gasit nici un treasure sau nu exista.\n");
+        printf("NU s-au gasit nici un treasure sau nu exista directory-ul %s.\n",huntID);
         return;
     }
 
@@ -193,6 +218,7 @@ int remTreasure(char *dir, const char *treasureName) {
     }
 
     printf("Treasure-ul a fost sters cu succes din director.\n");
+    putchar('\n');
     close(fd);
     return 0;
 }
@@ -231,28 +257,72 @@ int remHunt(char *huntName) {
         perror("Eroare la stergere folder.\n");
         return 3;
     }
+    putchar('\n');
 }
 
 
 
-int main(){
+int main(int argc, char *argv[]){
 
-    treasure test1={"TR1","Tudor",{1.2,2.5},25,"CL1"};
-    treasure test2={"TR2","Gabriel",{2.2,3.5},35,"CL2"};
-    treasure test3={"TR3","Flavius",{3.2,4.5},45,"CL3"};
+    Option optiune;
 
-    add(test1,"HUNT1");
-    add(test2,"HUNT2");
-    add(test3,"HUNT1");
+    if(!strcmp(argv[1],"--add")) optiune=ADD_TREASURE;
+    else if(!strcmp(argv[1],"--list")) optiune=LIST_TREASURE;
+    else if(!strcmp(argv[1],"--view")) optiune=VIEW_TREASURE;
+    else if(!strcmp(argv[1],"--removet")) optiune=REMOVE_TREASURE;
+    else if(!strcmp(argv[1],"--removeh")) optiune=REMOVE_HUNT;
 
-    list("HUNT1");
+    switch(optiune){
+        case ADD_TREASURE:
+            if(argc!=4){
+                perror("Introdu 4 argumente.\n");
+                exit(-1);
+            }
+            for(int i=0;i<10;i++){
+                if(!strcmp(exemple[i].treasure_id,argv[3])){
+                    add(argv[2],exemple[i]);
+                    return 0;
+                }
+            }
+            printf("Introdu un treasure existent (%s - %s).\n",exemple[0].treasure_id,exemple[9].treasure_id);
+            break;
 
-    view("HUNT2","TR2");
+        case LIST_TREASURE:
+            if(argc!=3){
+                perror("Introdu 3 argumente.\n");
+                exit(-2);
+            }
+            list(argv[2]);
+            break;
 
-    remTreasure("HUNT1","TR3");
-    
-    remHunt("HUNT1");
-    remHunt("HUNT2");
+        case VIEW_TREASURE:
+            if(argc!=4){
+                perror("Introdu 4 argumente.\n");
+                exit(-3);
+            }
+            view(argv[2],argv[3]);
+            break;
+
+        case REMOVE_TREASURE:
+            if(argc!=4){
+                perror("Introdu 4 argumente.\n");
+                exit(-4);
+            }
+        remTreasure(argv[2],argv[3]);
+        break;
+
+        case REMOVE_HUNT:
+        if(argc!=3){
+            perror("Introdu 3 argumente.\n");
+            exit(-4);
+        }
+        remHunt(argv[2]);
+        break;
+
+        default:
+            printf("Introdu o optiune valida!.\n");
+            break;
+    }
 
     return 0;
 }
