@@ -44,29 +44,61 @@ treasure exemple[10] = {
     {"TR10", "Vlad", {3.3, 4.4}, 50, "CL10"}
 };
 
+void addLog(char *huntID, char *mes){
+    chdir(huntID);
+    
+    char name[64]="logged_";
+    char localTime[64]="";
+    strcat(name,huntID);
+    
+    int fd = open(name,O_WRONLY | O_CREAT | O_APPEND, 0644);
+    
+    time_t now=time(NULL);
+    struct tm *local_time=localtime(&now);
+    strcat(localTime,asctime(local_time));
 
+    char finalmessage[1024]="";
+    strcat(finalmessage,mes);
+    strcat(finalmessage,"---> Schimbare facuta la: ");
+    strcat(finalmessage,localTime);
+    strcat(finalmessage,"**************************************************\n\n");
+    
+    write(fd,finalmessage,strlen(finalmessage));
+    
+    close(fd);
+}
 
 void add(char *huntID, treasure T) {
+    char message[512] = "";
+    
     int check = chdir(huntID);
-    if(check == -1) {
-        printf("Directory-ul %s nu exista.\n", huntID);
+    if (check == -1) {
+        snprintf(message + strlen(message), sizeof(message) - strlen(message), "Directory-ul %s nu exista.\n", huntID);
+        
         mkdir(huntID, S_IRWXU | S_IRWXG | S_IRWXO);
-        printf("S-a creat directory-ul %s.\n", huntID);
+
+        snprintf(message + strlen(message), sizeof(message) - strlen(message), "S-a creat directory-ul %s.\n", huntID);
+
         chdir(huntID);
     } else {
-        printf("S-a deschis directory-ul %s.\n", huntID);
+        snprintf(message + strlen(message), sizeof(message) - strlen(message), "S-a deschis directory-ul %s.\n", huntID);
     }
 
     int fd = open("treasures.bin", O_WRONLY | O_CREAT | O_APPEND, 0644);
     if (fd == -1) {
         perror("Eroare la deschiderea fisierului treasures.bin");
+        snprintf(message + strlen(message), sizeof(message) - strlen(message), "Eroare la deschiderea fisierului treasures.bin");
+        
         chdir("..");
+        addLog(huntID, message);
         return;
     }
 
     write(fd, &T, sizeof(treasure));
-    printf("S-a adaugat treasure-ul %s.\n", T.treasure_id);
-    putchar('\n');
+
+    snprintf(message + strlen(message), sizeof(message) - strlen(message), "S-a adaugat treasure-ul %s.\n\n", T.treasure_id);
+    
+    addLog(huntID, message);
     close(fd);
     chdir("..");
 }
@@ -113,6 +145,7 @@ void list(char *huntID){
     }
     if(!gasit) printf("Nu s-a gasit nici un treasure.\n");
     putchar('\n');
+    addLog(huntID,"S-a folosit functia de list.\n\n");
     close(f);
 }
 
@@ -164,6 +197,7 @@ void view(char *dir, char *treasureName){
 }
 
 int remTreasure(char *dir, const char *treasureName) {
+    char message[512]="";
     char path[64];
     snprintf(path, sizeof(path), "%s/treasures.bin", dir);
 
@@ -207,6 +241,9 @@ int remTreasure(char *dir, const char *treasureName) {
 
     if (!found) {
         printf("Nu exista treasure-ul in director.\n");
+        snprintf(message,sizeof(message),"S-a incercat sa se stearga un treasure inexistent.\n\n");
+        
+        addLog(dir,message);
         close(fd);
         return 4;
     }
@@ -218,6 +255,10 @@ int remTreasure(char *dir, const char *treasureName) {
     }
 
     printf("Treasure-ul a fost sters cu succes din director.\n");
+    snprintf(message,sizeof(message),"S-a sters %s.\n\n",treasureName);
+    
+    addLog(dir,message);
+    
     putchar('\n');
     close(fd);
     return 0;
@@ -264,6 +305,11 @@ int remHunt(char *huntName) {
 
 int main(int argc, char *argv[]){
 
+    if(argc<3){
+        printf("Prea putine arg in linia de comanda.\n");
+        return 1;
+    }
+
     Option optiune;
 
     if(!strcmp(argv[1],"--add")) optiune=ADD_TREASURE;
@@ -289,7 +335,7 @@ int main(int argc, char *argv[]){
 
         case LIST_TREASURE:
             if(argc!=3){
-                perror("Introdu 3 argumente.\n");
+                perror("Introdu 3 argumente pentru list treasure.\n");
                 exit(-2);
             }
             list(argv[2]);
@@ -297,7 +343,7 @@ int main(int argc, char *argv[]){
 
         case VIEW_TREASURE:
             if(argc!=4){
-                perror("Introdu 4 argumente.\n");
+                perror("Introdu 4 argumente pentru view treasure.\n");
                 exit(-3);
             }
             view(argv[2],argv[3]);
@@ -305,7 +351,7 @@ int main(int argc, char *argv[]){
 
         case REMOVE_TREASURE:
             if(argc!=4){
-                perror("Introdu 4 argumente.\n");
+                perror("Introdu 4 argumente pentru remove treasure.\n");
                 exit(-4);
             }
         remTreasure(argv[2],argv[3]);
@@ -313,7 +359,7 @@ int main(int argc, char *argv[]){
 
         case REMOVE_HUNT:
         if(argc!=3){
-            perror("Introdu 3 argumente.\n");
+            perror("Introdu 3 argumente pentru remove hunt.\n");
             exit(-4);
         }
         remHunt(argv[2]);
