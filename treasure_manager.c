@@ -7,6 +7,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <libgen.h>
 
 typedef enum{
     ADD_TREASURE,
@@ -45,6 +46,16 @@ treasure exemple[10] = {
 };
 
 void addLog(char *huntID, char *mes){
+    
+    char cwd[128]="";
+    getcwd(cwd,sizeof(cwd));
+    dirname(cwd);
+    //printf("%s\n",cwd);
+
+    char logPath[256];
+    snprintf(logPath, sizeof(logPath), "%s/%s/logged_%s", cwd,huntID, huntID);
+    //printf("%s\n",logPath);
+
     chdir(huntID);
     
     char name[64]="logged_";
@@ -64,8 +75,21 @@ void addLog(char *huntID, char *mes){
     strcat(finalmessage,"**************************************************\n\n");
     
     write(fd,finalmessage,strlen(finalmessage));
-    
     close(fd);
+
+    char symlinkName[64];
+    snprintf(symlinkName, sizeof(symlinkName), "log_%s", huntID);
+
+    struct stat st;
+    if (lstat(symlinkName, &st) == 0 && S_ISLNK(st.st_mode)) {
+        unlink(symlinkName);
+    }
+    chdir("..");
+    if (symlink(logPath, symlinkName) == -1) {
+        perror("Eroare la crearea symlink-ului, sau el deja exista.\n");
+    } else {
+        printf("Symlink creat: %s -> %s\n", symlinkName, logPath);
+    }
 }
 
 void add(char *huntID, treasure T) {
