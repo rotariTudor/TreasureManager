@@ -14,7 +14,8 @@ typedef enum{
     LIST_TREASURE,
     VIEW_TREASURE,
     REMOVE_TREASURE,
-    REMOVE_HUNT
+    REMOVE_HUNT,
+    LIST_HUNTS
   }Option;
 
 typedef struct{
@@ -325,11 +326,36 @@ int remHunt(char *huntName) {
     putchar('\n');
 }
 
+void list_hunts(){
+    DIR *cwd=opendir(".");
+    struct dirent *intr;
+    
+    if(!cwd){
+        perror("Nu s-a putut deschide current working directory.\n");
+        return;
+    }
+    int i=1;
+    while((intr=readdir(cwd))!=NULL){
+        struct stat st;
+        if (strcmp(intr->d_name, ".") == 0 || strcmp(intr->d_name, "..") == 0) continue;
+
+        if(strcmp(intr->d_name,".git") == 0 || strcmp(intr->d_name,".vscode") == 0) continue;
+
+        if(stat(intr->d_name,&st)==-1) continue;
+
+        if(S_ISDIR(st.st_mode)){
+            printf("Hunt %d: %s\n", i, intr->d_name);
+            i++;
+        }
+    }
+
+    closedir(cwd);
+}
 
 
 int main(int argc, char *argv[]){
 
-    if(argc<3){
+    if(argc<2){
         printf("Prea putine arg in linia de comanda.\n");
         return 1;
     }
@@ -337,10 +363,15 @@ int main(int argc, char *argv[]){
     Option optiune;
 
     if(!strcmp(argv[1],"--add")) optiune=ADD_TREASURE;
-    else if(!strcmp(argv[1],"--list")) optiune=LIST_TREASURE;
+    else if(!strcmp(argv[1],"--list_t")) optiune=LIST_TREASURE;
     else if(!strcmp(argv[1],"--view")) optiune=VIEW_TREASURE;
-    else if(!strcmp(argv[1],"--removet")) optiune=REMOVE_TREASURE;
-    else if(!strcmp(argv[1],"--removeh")) optiune=REMOVE_HUNT;
+    else if(!strcmp(argv[1],"--remove_t")) optiune=REMOVE_TREASURE;
+    else if(!strcmp(argv[1],"--remove_h")) optiune=REMOVE_HUNT;
+    else if(!strcmp(argv[1],"--list_h")) optiune=LIST_HUNTS;
+    else{
+        printf("comanda necunoscuta.\nintrodu --add, --list_t, --view, --remove_t, --remove_h, -- list,h\n");
+        return 1;
+    }
 
     switch(optiune){
         case ADD_TREASURE:
@@ -384,15 +415,22 @@ int main(int argc, char *argv[]){
         case REMOVE_HUNT:
         if(argc!=3){
             perror("Introdu 3 argumente pentru remove hunt.\n");
-            exit(-4);
+            exit(-5);
         }
         remHunt(argv[2]);
         break;
+
+        case LIST_HUNTS:
+            if(argc!=2){
+                perror("Introdu 2 argumente pentru list hunt.\n");
+                exit(-6);
+            }
+            list_hunts();
+            break;
 
         default:
             printf("Introdu o optiune valida!.\n");
             break;
     }
-
     return 0;
 }
