@@ -31,14 +31,68 @@ void handle_sigusr2(int signal){
     exit(0);
 }
 
+void scoreCalc(){
+    DIR *dir=opendir(".");
+    struct dirent *intr;
+
+    if(!dir){
+        printf("Eroare la deschiderea directorului.\n");
+        return;
+    }
+
+    printf("Rezultatele scorurilor pentru hunt-uri:\n");
+
+    
+    while((intr=readdir(dir))!=NULL){
+        struct stat st;
+
+        if(strcmp(intr->d_name,".")!=0 && strcmp(intr->d_name,"..")!=0 && strcmp(intr->d_name,".git")!=0 && strcmp(intr->d_name,".vscode")!=0 && stat(intr->d_name,&st)==0 && S_ISDIR(st.st_mode)){
+            int pipefd[2];
+
+            if(pipe(pipefd)==-1){
+                printf("Eroare la crearea pipe-ului.\n");
+                continue;
+            }
+
+            pid_t pid=fork();
+            if(pid==-1){
+                printf("Eroare la fork.\n");
+                close(pipefd[0]);
+                close(pipefd[1]);
+                continue;
+            }
+
+            if(pid==0){
+                close(pipefd[0]);
+                dup2(pipefd[1],STDOUT_FILENO);
+                close(pipefd[1]);
+                
+                char *args[]={"./score_calculator",intr->d_name,NULL};
+                execv(args[0],args);
+                printf("Eroare la execv.\n");
+                exit(1);
+            }else{
+                close(pipefd[1]);
+                printf("Hunt: %s\n",intr->d_name);
+
+                char buffer[256];
+                ssize_t bytes;
+                while ((bytes = read(pipefd[0], buffer, sizeof(buffer) - 1)) > 0) {
+                    buffer[bytes] = '\0';
+                    printf("%s", buffer);
+                }
+                close(pipefd[0]);
+                waitpid(pid, NULL, 0);
+                printf("------------------------------------------------\n");
+            }
+        }
+    }
+    closedir(dir);
+}
+
 void start_monitor(){
     int pid;
     int opt;
-
-    // if(monitor_on_off == 1){
-    //     printf("Monitorul deja rulează.\n");
-    //     return;
-    // }
 
     if((pid = fork()) < 0){
         printf("[FORK] Nu s-a putut realiza crearea procesului.\n");
@@ -52,10 +106,11 @@ void start_monitor(){
         printf("***************************\n");
 
         for(;;){
-            printf("Introdu o opțiune:\n1 - List hunts\n2 - List treasures\n3 - View treasure\n4 - Stop monitor\n5 - exit\n");
+            printf("Introdu o opțiune:\n1 - List hunts\n2 - List treasures\n3 - View treasure\n4 - Score calculator\n5 - Stop monitor\n6 - exit\n");
             printf("***************************\n");
             scanf("%d", &opt);
             getchar();
+
             switch(opt){
                 case 1:
                     printf("Toate hunturile din directory-ul cu hunturi:\n");
@@ -84,6 +139,11 @@ void start_monitor(){
                     break;
 
                 case 4:
+                    scoreCalc();
+                    printf("***************************\n");
+                    break;
+                    
+                case 5:
                     if(monitor_on_off == 0){
                         printf("Monitorul deja este oprit.\n");
                         printf("***************************\n");
@@ -97,7 +157,7 @@ void start_monitor(){
                     }
                     break;
 
-                case 5:
+                case 6:
                     if(monitor_on_off == 1){
                         printf("Monitorul inca ruleaza.\n");
                         printf("***************************\n");
