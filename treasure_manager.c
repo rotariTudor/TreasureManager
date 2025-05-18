@@ -172,7 +172,6 @@ void list(char *huntID){
     }
     if(!gasit) printf("Nu s-a gasit nici un treasure.\n");
     putchar('\n');
-    addLog(huntID,"S-a folosit functia de list.\n\n");
     close(f);
 }
 
